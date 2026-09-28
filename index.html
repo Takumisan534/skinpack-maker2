@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Takumisan534 Skin Pack Maker</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f3f4f6;color:#111827}
+header{background:#111827;color:#fff;padding:22px 16px;text-align:center}header h1{margin:0 0 5px;font-size:24px}header p{margin:0;color:#d1d5db}
+main{max-width:1050px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 10px #00000010}
+h2{font-size:18px;margin:0 0 14px}label{display:block;font-weight:700;margin:12px 0 6px}input[type=text],input[type=file]{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:10px;font-size:16px}
+.filepick{display:block;background:#eef2ff;border:2px dashed #9ca3af;border-radius:12px;padding:16px;text-align:center;cursor:pointer;font-weight:800;color:#374151}
+.filepick{position:relative;overflow:hidden}.filepick input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.filepick span{display:block;font-size:18px}
+.filepick small{display:block;margin-top:5px;font-weight:500;color:#6b7280}
+button{border:0;border-radius:10px;padding:12px 16px;font-size:16px;font-weight:700;cursor:pointer}.primary{background:#111827;color:#fff}.secondary{background:#e5e7eb;color:#111827}.danger{background:#fee2e2;color:#991b1b}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}.skin{border:1px solid #e5e7eb;border-radius:14px;padding:14px}.skin-head{display:flex;justify-content:space-between;align-items:center;gap:8px}.skin-head strong{font-size:17px}.preview{width:100%;height:170px;object-fit:contain;background:#f9fafb;border-radius:10px;margin:10px 0}
+.choice{display:flex;gap:8px;align-items:center;padding:9px;border:1px solid #e5e7eb;border-radius:9px;margin:6px 0;font-weight:500}.choice input{width:18px;height:18px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}.notice{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px;line-height:1.7}.small{font-size:13px;color:#6b7280}.status{margin-top:12px;font-weight:700}.hidden{display:none}
+</style>
+</head>
+<body>
+<header><h1>Takumisan534 Skin Pack Maker</h1><p>Minecraft Bedrock スキンパック作成ツール</p></header>
+<main>
+<section class="card">
+<h2>📦 パック設定</h2>
+<label>パック名</label><input id="packName" type="text" value="My Skin Pack" placeholder="例：Takumisan534 Skin Pack">
+</section>
+
+<section class="card">
+<div class="actions"><button class="primary" id="add">＋ スキンを追加</button><button class="secondary" id="clear">全削除</button></div>
+<div id="skins" class="grid" style="margin-top:14px"></div>
+</section>
+
+<section class="card">
+<h2>⚠️ ご注意</h2>
+<div class="notice">
+<b>・Hiveでは使用できません。</b><br>
+・他のサーバーで使用した場合の不具合・トラブル等について、製作者は責任を負いません。<br>
+・バグ・不具合・その他問題が発生した場合は、<b>Takumisan534のXbox</b>までご連絡ください。
+</div>
+</section>
+
+<section class="card">
+<div class="actions"><button class="primary" id="build">📦 .mcpackを作成</button></div>
+<div id="status" class="status"></div>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
+<script>
+const skins=[];
+const $=id=>document.getElementById(id);
+function uuid(){
+  const a=crypto.getRandomValues(new Uint8Array(16));
+  a[6]=(a[6]&15)|64; a[8]=(a[8]&63)|128;
+  const h=[...a].map(x=>x.toString(16).padStart(2,"0")).join("");
+  return h.slice(0,8)+"-"+h.slice(8,12)+"-"+h.slice(12,16)+"-"+h.slice(16,20)+"-"+h.slice(20);
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+function render(){
+  $("skins").innerHTML="";
+  skins.forEach((s,i)=>{
+    const d=document.createElement("div");d.className="skin";
+    d.innerHTML=`
+      <div class="skin-head"><strong>Skin ${i+1}</strong><button class="danger" data-del="${s.id}">削除</button></div>
+      <img class="preview" id="prev-${s.id}" ${s.url?`src="${s.url}"`:""} alt="">
+      <label>スキン画像（PNG）</label>
+<label class="filepick">
+  <span>🖼️ PNGを選択</span>
+  <small>ここをタップ / クリックしてスキン画像を選ぶ</small>
+  <input type="file" accept=".png,image/png" data-file="${s.id}">
+</label>
+      <label>スキン名</label><input type="text" value="${esc(s.name)}" data-name="${s.id}">
+      <label>防具</label>
+      <div class="choice"><input type="checkbox" data-armor="${s.id}" ${s.hideArmor?"checked":""}> 防具を非表示</div>
+      <label>腕の太さ</label>
+      <label class="choice"><input type="radio" name="geo-${s.id}" data-geo="${s.id}" value="custom" ${s.geo==="custom"?"checked":""}> 通常（custom）</label>
+      <label class="choice"><input type="radio" name="geo-${s.id}" data-geo="${s.id}" value="customSlim" ${s.geo==="customSlim"?"checked":""}> スリム（customSlim）</label>
+      <label>腕のポーズ</label>
+      <label class="choice"><input type="radio" name="pose-${s.id}" data-pose="${s.id}" value="normal" ${s.pose==="normal"?"checked":""}> 通常</label>
+      <label class="choice"><input type="radio" name="pose-${s.id}" data-pose="${s.id}" value="zombie" ${s.pose==="zombie"?"checked":""}> 🧟 ゾンビ風</label>
+      <label class="choice"><input type="radio" name="pose-${s.id}" data-pose="${s.id}" value="statue" ${s.pose==="statue"?"checked":""}> 🙋 挙手（自由の女神）</label>
+    `;
+    $("skins").appendChild(d);
+  });
+  bind();
+}
+function bind(){
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{let i=skins.findIndex(x=>x.id===b.dataset.del); if(i>=0){URL.revokeObjectURL(skins[i].url||"");skins.splice(i,1);render();}});
+  document.querySelectorAll("[data-name]").forEach(x=>x.oninput=()=>{let s=skins.find(y=>y.id===x.dataset.name);s.name=x.value||"Skin";});
+  document.querySelectorAll("[data-armor]").forEach(x=>x.onchange=()=>{let s=skins.find(y=>y.id===x.dataset.armor);s.hideArmor=x.checked;});
+  document.querySelectorAll("[data-geo]").forEach(x=>x.onchange=()=>{let s=skins.find(y=>y.id===x.dataset.geo);s.geo=x.value;});
+  document.querySelectorAll("[data-pose]").forEach(x=>x.onchange=()=>{let s=skins.find(y=>y.id===x.dataset.pose);s.pose=x.value;});
+  document.querySelectorAll("[data-file]").forEach(x=>{
+    x.addEventListener("change", e=>{
+      const s=skins.find(y=>y.id===x.dataset.file);
+      const f=e.target.files && e.target.files[0];
+      if(!s||!f)return;
+      if(f.type !== "image/png" && !/\.png$/i.test(f.name)){
+        alert("PNG画像を選択してください。");
+        e.target.value="";
+        return;
+      }
+      if(s.url)URL.revokeObjectURL(s.url);
+      s.file=f;
+      s.url=URL.createObjectURL(f);
+      const im=$("prev-"+s.id);
+      im.src=s.url;
+      im.onload=()=>URL.revokeObjectURL(s.url);
+    }, {once:true});
+  });
+}
+$("add").onclick=()=>{skins.push({id:uuid(),name:"Skin "+(skins.length+1),file:null,url:"",hideArmor:false,geo:"custom",pose:"normal"});render();};
+$("clear").onclick=()=>{if(confirm("すべてのスキンを削除しますか？")){skins.splice(0);render();}};
+$("build").onclick=async()=>{
+  $("status").textContent="";
+  if(!skins.length){alert("スキンを1つ以上追加してください。");return}
+  if(skins.some(s=>!s.file)){alert("すべてのスキンにPNG画像を設定してください。");return}
+  if(typeof fflate==="undefined"){alert("圧縮ライブラリを読み込めませんでした。インターネット接続を確認してください。");return}
+  const packName=$("packName").value.trim()||"My Skin Pack";
+  const headerUUID=uuid(), moduleUUID=uuid();
+  const safe=(s)=>s.replace(/[\\\\/:*?"<>|]/g,"_");
+  const entries={};
+  entries["manifest.json"]=JSON.stringify({
+    format_version:2,
+    header:{name:packName,description:"Minecraft Skin Pack",uuid:headerUUID,version:[1,0,0]},
+    modules:[{type:"skin_pack",uuid:moduleUUID,version:[1,0,0]}]
+  },null,2);
+  const skinJSON=[];
+  for(let i=0;i<skins.length;i++){
+    const s=skins[i], fileName="skin"+(i+1)+".png";
+    const item={localization_name:"skin"+(i+1),geometry:"geometry.humanoid."+s.geo,texture:fileName,type:"free",hide_armor:!!s.hideArmor};
+    if(s.pose==="zombie") item.animations={"move.arms":"animation.horse.setup"};
+    if(s.pose==="statue") item.animations={"move.arms":"animation.player.move.arms.statue_of_liberty"};
+    skinJSON.push(item);
+    entries[fileName]=new Uint8Array(await s.file.arrayBuffer());
+  }
+  entries["skins.json"]=JSON.stringify({skins:skinJSON,serialize_name:packName,localization_name:packName},null,2);
+  const zipped=fflate.zipSync(Object.fromEntries(Object.entries(entries).map(([k,v])=>[k,typeof v==="string"?new TextEncoder().encode(v):v])),{level:6});
+  const blob=new Blob([zipped],{type:"application/octet-stream"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=safe(packName)+".mcpack";a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  $("status").textContent="✅ "+safe(packName)+".mcpack を作成しました！";
+};
+$("add").click();
+</script>
+</body></html>
